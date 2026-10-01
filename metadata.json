@@ -1,0 +1,6 @@
+{
+  "name": "Rifa Carne Asada",
+  "description": "App para rifar de forma aleatoria qué artículo lleva cada persona a una carne asada de despedida",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
