@@ -48,7 +48,7 @@ export function AdminView({ estado, conectado, onExit, onReset, password }: Prop
             <h4 className="font-bold">{persona.esperado ? 'Editar participante' : 'Nuevo participante'}</h4>
             <label className="block">Nombre<input className={input} maxLength={60} value={persona.nombre} onChange={e => setPersona({ ...persona, nombre: e.target.value })} required /></label>
             <label className="block">Foto de recuerdo<select className={input} value={persona.foto} onChange={e => setPersona({ ...persona, foto: Number(e.target.value) })}>{Array.from({ length: 13 }, (_, i) => <option key={i} value={i + 1}>Foto {i + 1}</option>)}</select></label>
-            <img src={`/fotos/foto${persona.foto}.jpg`} alt="Vista previa de la foto elegida" className="h-24 rounded-lg object-contain" />
+            <img src={`${import.meta.env.BASE_URL}fotos/foto${persona.foto}.jpg`} alt="Vista previa de la foto elegida" className="h-24 rounded-lg object-contain" />
             <div className="flex gap-4"><button className={button}>Guardar participante</button><button type="button" onClick={() => setPersona(null)}>Cancelar</button></div>
           </form>}
           {!personas.length && <p className="text-stone-500">No hay participantes. Agrega uno para comenzar.</p>}

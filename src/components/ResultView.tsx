@@ -38,7 +38,7 @@ export const ResultView: React.FC<ResultViewProps> = ({
 
   // Build photo url strategy:
   // First tries local `/fotos/foto${photoIndex}.jpg`, if missing falls back to demo celebratory photo
-  const localPhotoUrl = `/fotos/foto${photoIndex}.jpg`;
+  const localPhotoUrl = `${import.meta.env.BASE_URL}fotos/foto${photoIndex}.jpg`;
   const fallbackPhotoUrl = DEMO_PHOTOS[(photoIndex - 1) % DEMO_PHOTOS.length];
   const photoSrc = imageError ? fallbackPhotoUrl : localPhotoUrl;
 

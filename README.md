@@ -33,3 +33,11 @@ Los datos anteriores son compatibles: se reconstruye el catálogo desde los cupo
 - `npm run lint`: comprobar TypeScript.
 - `npm test`: pruebas locales de compatibilidad, asignaciones, edición, validaciones, bebidas y reinicio. No conecta con Firebase.
 - `npm run build`: generar la versión de producción en `dist`.
+
+## GitHub Pages
+
+El sitio se publica en https://cesarportech.github.io/CARNE/ mediante `.github/workflows/deploy.yml`. En Settings → Pages, la fuente debe ser **GitHub Actions**. El workflow publica `dist`, después de comprobar TypeScript, las pruebas de la rifa y las rutas del sitio compilado.
+
+Vite usa `base: './'` para cargar JavaScript y CSS desde el directorio del sitio. Las fotos de `public/fotos` usan `import.meta.env.BASE_URL` por el mismo motivo. No uses rutas absolutas como `/assets/...` o `/fotos/...`: apuntan a la raíz del dominio, fuera de `/CARNE/`, y provocan errores 404 (pantalla blanca si falla el JavaScript).
+
+Ejecuta `npm run build && npm run test:pages` para comprobar que los recursos generados permanecen dentro de `/CARNE/` y que las 13 fotos están incluidas. Las rutas internas usan estado y `#admin`, por lo que no requieren redirecciones de servidor.
