@@ -22,7 +22,11 @@ export const WheelView: React.FC<WheelViewProps> = ({
   const [currentAngle, setCurrentAngle] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const running = useRef(false);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; if (timer.current) clearTimeout(timer.current); };
+  }, []);
 
   // Define segments on the wheel (7 item categories)
   const [segments] = useState(items);
@@ -39,7 +43,7 @@ export const WheelView: React.FC<WheelViewProps> = ({
     .join(', ');
 
   const handleSpin = async () => {
-    if (running.current || !numSegments) return;
+    if (running.current || !numSegments || participant.hasPlayed) return;
     running.current = true;
     setIsSpinning(true);
 
@@ -52,6 +56,7 @@ export const WheelView: React.FC<WheelViewProps> = ({
       console.error('Error asignando el cupo:', err);
     }
 
+    if (!mounted.current) return;
     if (!chosenItemName) {
       running.current = false;
       setIsSpinning(false);
@@ -169,7 +174,7 @@ export const WheelView: React.FC<WheelViewProps> = ({
       <div className="w-full max-w-sm flex flex-col items-center gap-3">
         <button
           id="btn-girar-ruleta"
-          disabled={isSpinning || !numSegments}
+          disabled={isSpinning || !numSegments || participant.hasPlayed}
           onClick={handleSpin}
           className={`w-full py-4 px-6 rounded-2xl font-extrabold text-base tracking-wide flex items-center justify-center gap-2 shadow-xl transition-all duration-200 ${
             isSpinning

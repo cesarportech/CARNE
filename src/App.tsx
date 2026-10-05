@@ -66,6 +66,14 @@ export default function App() {
     [participants, activeId]
   );
 
+  useEffect(() => {
+    if (!activeId || ['home', 'admin', 'table'].includes(paso)) return;
+    if (!activeParticipant || (paso !== 'wheel' && !activeParticipant.hasPlayed)) {
+      setActiveId(null);
+      setPaso('home');
+    }
+  }, [activeId, activeParticipant, paso]);
+
   /** Claves de bebida ya reservadas (pepsi / coca / sabores). */
   const getTakenFrescoOptions = useCallback(
     (): string[] =>
@@ -160,6 +168,7 @@ export default function App() {
 
         {paso === 'wheel' && activeParticipant && (
           <WheelView
+            key={`${activeId}:${JSON.stringify(items)}`}
             items={items.filter(i => i.totalSlots > 0)}
             participant={activeParticipant}
             onSpin={pedirCupo}

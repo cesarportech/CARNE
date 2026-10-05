@@ -20,6 +20,8 @@ Editar nombres conserva asignaciones. La cantidad de un artículo no puede ser m
 
 El reinicio está dentro del panel, pide confirmación y borra los resultados conservando los participantes y artículos configurados.
 
+Cada participante y artículo tiene un botón **Eliminar** con confirmación. La eliminación es permanente en Firebase y se refleja automáticamente en las vistas conectadas. Al eliminar un participante se libera su cupo y su bebida; al eliminar un artículo se borran sus cupos y asignaciones, y las personas afectadas pueden volver a girar. Un catálogo vacío permanece vacío al recargar o reiniciar. Funciona tanto en el ambiente real como en prueba, siempre sobre el ambiente abierto; no borra el otro ambiente.
+
 **Protección:** el acceso oculto y la contraseña se comprueban en el navegador; no son autorización de servidor. Para restringir realmente las escrituras administrativas se necesitan Firebase Authentication y reglas de base de datos apropiadas. Este cambio no modifica las reglas del proyecto Firebase.
 
 ## Datos y pruebas

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { EstadoRifa, guardarArticuloAdmin, guardarParticipanteAdmin } from '../firebase';
+import { EstadoRifa, guardarArticuloAdmin, guardarParticipanteAdmin, eliminarParticipanteAdmin, eliminarArticuloAdmin } from '../firebase';
 import { ItemDefinition } from '../types';
 
 interface Props { estado: EstadoRifa; conectado: boolean; onExit: () => void; onReset: () => Promise<void>; password: string }
@@ -20,10 +20,10 @@ export function AdminView({ estado, conectado, onExit, onReset, password }: Prop
   const articulos = Object.values(estado.articulos);
   const pendientes = personas.filter(([, p]) => !p.yaJugo).length;
   const disponibles = Object.values(estado.cupos).filter(c => c.disponible).length;
-  const guardar = async (accion: () => Promise<void>, cerrar: () => void) => {
+  const guardar = async (accion: () => Promise<void>, cerrar: () => void, mensajeExito = 'Cambios guardados.') => {
     if (busy) return;
     setBusy(true); setError(''); setMensaje('');
-    try { await accion(); cerrar(); setMensaje('Cambios guardados.'); }
+    try { await accion(); cerrar(); setMensaje(mensajeExito); }
     catch (e) { setError(e instanceof Error ? e.message : 'No se pudo guardar. Inténtalo de nuevo.'); }
     finally { setBusy(false); }
   };
@@ -51,7 +51,11 @@ export function AdminView({ estado, conectado, onExit, onReset, password }: Prop
             <img src={`/fotos/foto${persona.foto}.jpg`} alt="Vista previa de la foto elegida" className="h-24 rounded-lg object-contain" />
             <div className="flex gap-4"><button className={button}>Guardar participante</button><button type="button" onClick={() => setPersona(null)}>Cancelar</button></div>
           </form>}
-          <ul className="divide-y">{personas.map(([id, p]) => <li key={id} className="py-3 flex justify-between gap-3 items-center"><div><strong>{p.nombre}</strong><p className="text-sm text-stone-500">{p.yaJugo ? `${p.articulo || 'Asignación pendiente'}${p.opcionFresco ? ` · ${p.opcionFresco}` : ''}` : 'Pendiente de girar'}</p></div><button className="underline" onClick={() => { setPersona({ id, nombre: p.nombre, foto: p.photoIndex || 1, esperado: p.nombre }); setError(''); }}>Editar<span className="sr-only"> {p.nombre}</span></button></li>)}</ul>
+          {!personas.length && <p className="text-stone-500">No hay participantes. Agrega uno para comenzar.</p>}
+          <ul className="divide-y">{personas.map(([id, p]) => <li key={id} className="py-3 flex justify-between gap-3 items-center"><div><strong>{p.nombre}</strong><p className="text-sm text-stone-500">{p.yaJugo ? `${p.articulo || 'Asignación pendiente'}${p.opcionFresco ? ` · ${p.opcionFresco}` : ''}` : 'Pendiente de girar'}</p></div><div className="flex flex-wrap justify-end gap-3"><button className="underline" onClick={() => { setPersona({ id, nombre: p.nombre, foto: p.photoIndex || 1, esperado: p.nombre }); setError(''); }}>Editar<span className="sr-only"> {p.nombre}</span></button><button className="text-red-700 underline" onClick={() => {
+ if (!window.confirm(`¿Eliminar permanentemente a ${p.nombre}? Se borrará de la base de datos y de todas las vistas. Su cupo y bebida quedarán disponibles. Esta acción no se puede deshacer.`)) return;
+ void guardar(() => eliminarParticipanteAdmin(id, p), () => { if (persona?.id === id) setPersona(null); }, "Participante eliminado permanentemente.");
+ }}>Eliminar<span className="sr-only"> {p.nombre}</span></button></div></li>)}</ul>
         </div>
         <div className="bg-white border rounded-2xl p-5 space-y-4">
           <div className="flex flex-wrap justify-between gap-3"><h3 className="text-xl font-bold">Artículos</h3><button className={button} onClick={() => { setArticulo(nuevoArticulo()); setOriginal(undefined); setError(''); }}>Agregar artículo</button></div>
@@ -64,7 +68,11 @@ export function AdminView({ estado, conectado, onExit, onReset, password }: Prop
             <label className="block">Descripción<textarea className={input} maxLength={300} value={articulo.description} onChange={e => setArticulo({ ...articulo, description: e.target.value })} /></label>
             <div className="flex gap-4"><button className={button}>Guardar artículo</button><button type="button" onClick={() => setArticulo(null)}>Cancelar</button></div>
           </form>}
-          <ul className="divide-y">{articulos.map(a => <li key={a.id} className="py-3 flex items-center justify-between gap-3"><div><strong>{a.emoji} {a.name}</strong><p className="text-sm text-stone-500">{a.totalSlots} cupos · {Object.values(estado.cupos).filter(c => c.tipo === a.name && !c.disponible).length} asignados</p></div><button className="underline" onClick={() => { setArticulo({ ...a }); setOriginal({ ...a }); setError(''); }}>Editar<span className="sr-only"> {a.name}</span></button></li>)}</ul>
+          {!articulos.length && <p className="text-stone-500">No hay artículos. Agrega uno para habilitar la ruleta.</p>}
+          <ul className="divide-y">{articulos.map(a => <li key={a.id} className="py-3 flex items-center justify-between gap-3"><div><strong>{a.emoji} {a.name}</strong><p className="text-sm text-stone-500">{a.totalSlots} cupos · {Object.values(estado.cupos).filter(c => c.tipo === a.name && !c.disponible).length} asignados</p></div><div className="flex flex-wrap justify-end gap-3"><button className="underline" onClick={() => { setArticulo({ ...a }); setOriginal({ ...a }); setError(''); }}>Editar<span className="sr-only"> {a.name}</span></button><button className="text-red-700 underline" onClick={() => {
+ if (!window.confirm(`¿Eliminar permanentemente ${a.name}? Se borrará de la base de datos, la ruleta y todas las vistas, junto con sus cupos y asignaciones. Las personas que lo tenían podrán volver a girar. Esta acción no se puede deshacer.`)) return;
+ void guardar(() => eliminarArticuloAdmin(a.id, a), () => { if (articulo?.id === a.id) { setArticulo(null); setOriginal(undefined); } }, "Artículo eliminado permanentemente.");
+ }}>Eliminar<span className="sr-only"> {a.name}</span></button></div></li>)}</ul>
         </div>
         <div className="border border-red-200 rounded-2xl p-5 space-y-3"><h3 className="font-bold">Reiniciar resultados</h3><p>Libera los cupos y permite volver a girar. Conserva los participantes y artículos configurados.</p><button className="text-red-700 underline" onClick={() => void guardar(onReset, () => {})}>Reiniciar sorteo</button></div>
       </fieldset>

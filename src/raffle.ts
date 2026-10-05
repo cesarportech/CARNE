@@ -10,6 +10,7 @@ export interface ParticipanteDB {
 }
 export interface CupoDB { tipo: string; disponible: boolean; asignadoA: string | null }
 export interface EstadoRifa {
+  catalogoConfigurado?: boolean;
   inicializado?: boolean;
   participantes: Record<string, ParticipanteDB>;
   cupos: Record<string, CupoDB>;
@@ -24,10 +25,11 @@ export function normalizar(raw: any): EstadoRifa {
   s.participantes ||= {};
   s.cupos = Object.fromEntries(Object.entries(s.cupos || {}).filter(([, v]) => v));
   s.frescoOpciones ||= {};
-  s.articulos ||= Object.fromEntries(ITEMS_CATALOG.map(item => {
+  s.articulos ||= s.catalogoConfigurado ? {} : Object.fromEntries(ITEMS_CATALOG.map(item => {
     const count = Object.values(s.cupos).filter((c: CupoDB) => c.tipo === item.name).length;
     return [item.id, { ...item, totalSlots: s.inicializado ? count : item.totalSlots }];
   }));
+  s.catalogoConfigurado = true;
   for (const [id, p] of Object.entries(s.participantes) as [string, ParticipanteDB][]) {
     p.photoIndex ||= Math.max(1, PARTICIPANTS_LIST.findIndex(n => slug(n) === id) + 1);
   }
@@ -92,6 +94,29 @@ export function asignar(s: EstadoRifa, id: string, azar = Math.random()): string
   p.yaJugo = true;
   p.articulo = c.tipo;
   return c.tipo;
+}
+export function eliminarParticipante(s: EstadoRifa, id: string, esperado: ParticipanteDB) {
+  const p = s.participantes[id];
+  if (!p || JSON.stringify(p) !== JSON.stringify(esperado)) throw new Error('Este participante cambió o ya no existe. Revisa la lista e inténtalo de nuevo.');
+  Object.values(s.cupos).forEach(c => {
+    if (c.asignadoA === p.nombre) { c.disponible = true; c.asignadoA = null; }
+  });
+  Object.keys(s.frescoOpciones).forEach(k => { if (s.frescoOpciones[k] === p.nombre) delete s.frescoOpciones[k]; });
+  delete s.participantes[id];
+}
+export function eliminarArticulo(s: EstadoRifa, id: string, esperado: ItemDefinition) {
+  const a = s.articulos[id];
+  if (!a || JSON.stringify(a) !== JSON.stringify(esperado)) throw new Error('Este artículo cambió o ya no existe. Revisa la lista e inténtalo de nuevo.');
+  Object.entries(s.cupos).forEach(([key, c]) => { if (c.tipo === a.name) delete s.cupos[key]; });
+  Object.values(s.participantes).forEach(p => {
+    if (p.articulo === a.name) {
+      Object.keys(s.frescoOpciones).forEach(k => { if (s.frescoOpciones[k] === p.nombre) delete s.frescoOpciones[k]; });
+      p.yaJugo = false; p.articulo = null; p.opcionFresco = null;
+    }
+  });
+  if (a.name === 'Fresco') s.frescoOpciones = {};
+  s.catalogoConfigurado = true;
+  delete s.articulos[id];
 }
 export function elegirBebida(s: EstadoRifa, id: string, opcion: string) {
   const p = s.participantes[id];

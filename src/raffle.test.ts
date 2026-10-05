@@ -1,12 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { crearEstado, normalizar, guardarArticulo, guardarParticipante, asignar, elegirBebida, reiniciarEstado } from './raffle';
+import { crearEstado, normalizar, guardarArticulo, guardarParticipante, eliminarParticipante, eliminarArticulo, asignar, elegirBebida, reiniciarEstado } from './raffle';
 
 test('los datos anteriores conservan resultados y recuperan el catálogo', () => {
   const s = crearEstado();
   asignar(s, 'cesar', 0);
   const legacy: any = structuredClone(s);
   delete legacy.articulos;
+  delete legacy.catalogoConfigurado;
   const migrated = normalizar(legacy);
   assert.equal(migrated.participantes.cesar.articulo, s.participantes.cesar.articulo);
   assert.equal(Object.keys(migrated.articulos).length, 7);
@@ -71,4 +72,75 @@ test('todos los giros respetan las cantidades y no reutilizan cupos', () => {
   guardarParticipante(s, 'extra', 'Extra', 1);
   assert.throws(() => asignar(s, 'extra'), /No quedan cupos/);
   assert.equal(s.participantes.extra.yaJugo, false);
+});
+
+test('eliminar un participante borra su registro y libera cupo y bebida', () => {
+  const s = crearEstado();
+  const cupos = Object.values(s.cupos);
+  const fresco = cupos.findIndex(c => c.tipo === 'Fresco');
+  asignar(s, 'cesar', (fresco + 0.5) / cupos.length);
+  elegirBebida(s, 'cesar', 'coca');
+  eliminarParticipante(s, 'cesar', structuredClone(s.participantes.cesar));
+  assert.equal(s.participantes.cesar, undefined);
+  assert.equal(s.frescoOpciones.coca, undefined);
+  assert.ok(cupos.every(c => c.disponible && !c.asignadoA));
+  assert.equal(asignar(s, 'fernando', (fresco + 0.5) / cupos.length), 'Fresco');
+  elegirBebida(s, 'fernando', 'coca');
+  reiniciarEstado(s);
+  assert.equal(normalizar(s).participantes.cesar, undefined);
+});
+
+test('eliminar un alimento borra cupos y resultados asociados, conservando los demás', () => {
+  const s = crearEstado();
+  asignar(s, 'cesar', 0);
+  asignar(s, 'fernando', 0.999);
+  const otro = structuredClone(s.participantes.fernando);
+  const nombre = s.articulos.chimol.name;
+  eliminarArticulo(s, 'chimol', structuredClone(s.articulos.chimol));
+  assert.equal(s.articulos.chimol, undefined);
+  assert.ok(Object.values(s.cupos).every(c => c.tipo !== nombre));
+  assert.equal(s.participantes.cesar.yaJugo, false);
+  assert.equal(s.participantes.cesar.articulo, null);
+  assert.deepEqual(s.participantes.fernando, otro);
+  assert.notEqual(asignar(s, 'cesar', 0), nombre);
+});
+
+test('eliminar Fresco libera todas las bebidas y permite volver a girar', () => {
+  const s = crearEstado();
+  const cupos = Object.values(s.cupos);
+  asignar(s, 'cesar', (cupos.findIndex(c => c.tipo === 'Fresco') + 0.5) / cupos.length);
+  elegirBebida(s, 'cesar', 'pepsi');
+  eliminarArticulo(s, 'fresco', structuredClone(s.articulos.fresco));
+  assert.deepEqual(s.frescoOpciones, {});
+  assert.equal(s.participantes.cesar.opcionFresco, null);
+  assert.equal(s.participantes.cesar.yaJugo, false);
+});
+
+test('un catálogo vacío no reaparece al recargar desde Firebase ni al reiniciar', () => {
+  const s = crearEstado();
+  Object.values(s.articulos).forEach(a => eliminarArticulo(s, a.id, structuredClone(a)));
+  Object.entries(s.participantes).forEach(([id, p]) => eliminarParticipante(s, id, structuredClone(p)));
+  // Realtime Database omite los objetos vacíos al guardar.
+  const raw: any = structuredClone(s);
+  delete raw.articulos; delete raw.participantes; delete raw.cupos; delete raw.frescoOpciones;
+  const recargado = normalizar(raw);
+  reiniciarEstado(recargado);
+  assert.deepEqual(recargado.articulos, {});
+  assert.deepEqual(recargado.participantes, {});
+  assert.deepEqual(recargado.cupos, {});
+  assert.equal(recargado.inicializado, true);
+});
+
+test('una eliminación desactualizada no borra registros que cambiaron', () => {
+  const s = crearEstado();
+  const p = structuredClone(s.participantes.cesar);
+  asignar(s, 'cesar', 0);
+  assert.throws(() => eliminarParticipante(s, 'cesar', p), /cambió/);
+  const a = structuredClone(s.articulos.chimol);
+  guardarArticulo(s, { ...a, name: 'Ensalada' });
+  assert.throws(() => eliminarArticulo(s, a.id, a), /cambió/);
+  eliminarParticipante(s, 'cesar', structuredClone(s.participantes.cesar));
+  assert.throws(() => guardarParticipante(s, 'cesar', 'Cesar', 1, p.nombre), /cambió/);
+  eliminarArticulo(s, a.id, structuredClone(s.articulos[a.id]));
+  assert.throws(() => guardarArticulo(s, a, a), /cambió/);
 });

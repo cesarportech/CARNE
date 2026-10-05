@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, onValue, runTransaction } from 'firebase/database';
 import { ItemDefinition } from './types';
-import { EstadoRifa, normalizar, crearEstado, guardarParticipante, guardarArticulo, asignar, elegirBebida, reiniciarEstado } from './raffle';
+import { EstadoRifa, ParticipanteDB, normalizar, crearEstado, guardarParticipante, guardarArticulo, eliminarParticipante, eliminarArticulo, asignar, elegirBebida, reiniciarEstado } from './raffle';
 export { slug } from './raffle';
 export type { EstadoRifa } from './raffle';
 
@@ -58,3 +58,9 @@ export async function guardarArticuloAdmin(item: ItemDefinition, esperado?: Item
   await cambiar(s => guardarArticulo(s, item, esperado));
 }
 export async function reiniciarRifa() { await cambiar(reiniciarEstado); }
+export async function eliminarParticipanteAdmin(id: string, esperado: ParticipanteDB) {
+  await cambiar(s => eliminarParticipante(s, id, esperado));
+}
+export async function eliminarArticuloAdmin(id: string, esperado: ItemDefinition) {
+  await cambiar(s => eliminarArticulo(s, id, esperado));
+}
